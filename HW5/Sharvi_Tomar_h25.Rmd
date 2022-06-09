@@ -1,0 +1,315 @@
+---
+title: "Stat 425 Homework 5"
+author: Sharvi Tomar
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{css, echo=FALSE}
+.solution {
+background-color: #CCDDFF;
+}
+```
+
+## Problem 1
+
+Use the chickwts data to fit a one-way ANOVA with weights as the response
+and feed as the predictor.
+
+```{r, warning=FALSE}
+library(faraway)
+attach(chickwts)
+attributes(feed)
+```
+
+```{r}
+contrasts(feed)=contr.treatment(6)
+g=lm(weight~feed)
+summary(g)
+```
+
+(a) Determine whether there are any differences in the weights of chickens according to their
+feed.
+```{r}
+null = lm(weight ~ 1)
+anova(null, g)
+```
+
+Since the p-value of 5.936e-10 <0.05, hence we reject the null hypothesis and conclude that there is difference in weights of chicken according to their feed.
+
+(b) Perform all necessary model diagnostics.
+
+1. Performing Levene's test for equality of variance
+
+```{r}
+plot(g, which=1)
+summary(lm(abs(g$res) ~ feed))
+```
+
+
+From the residuals vs. fitted values plot, we see that the points appear to be randomly spread out about the line, with no discernible non-linear trends or indications of non-constant variance. Hence we conclude that the constant variance assumption holds true.
+
+The same result is obtained from Levene's test since the p-value>0.01, there is no evidence of unequal variances.
+
+2.  Performing Shapiro-Wilk test for normality
+
+```{r}
+plot(g, which=2)
+shapiro.test(residuals(g))
+```
+
+
+
+From the Q-Q plot, we can see that there is a straight and hence the normality assumption holds true.
+
+We get the same confirmation from the Shapiro-Wilk normality test. The p-value>0.05, hence we fail to reject the null hypothesis and conclude that the normality of residuals assumption holds true.
+
+3. Detecting unusual observations
+
+a. Leverage
+
+```{r}
+plot(g, which=6)
+```
+
+**Observations which have high Cook's distance value as well as leverage require special handling. Such observations are: 54, 53 and 64 are worth investigating further.**
+
+b. Influential Observations
+```{r}
+cook = cooks.distance(g)
+sort(cook, decreasing = TRUE)[1:5]
+```
+
+```{r}
+halfnorm(cook, labs=row.names(chickwts), ylab="Cook's distances")
+```
+
+**Observations with high Cook's distance are: Observations-54, 53 and 68. Observation 54 has the highest cook's distance value (although not close 1), but a very high cook's distance value in comparison to other observations it may be considered as an influential observation and should be handled differently. We may remove this observation for model fitting.**
+
+c. Outliers
+
+```{r}
+jack=rstudent(g)
+nn=dim(chickwts)[1]
+qt(0.5/(2*nn),g$df.residual-1)
+```
+
+```{r}
+sort(abs(jack),decreasing=TRUE)[1:10]
+```
+
+**Observation 54 has a studentized quantile value close to ~2.7., hence it may be considered outlier. We may remove this observation for model fitting.**
+
+
+## Problem 2
+
+Use the infmort data to fit a one-way ANOVA with income as the response and
+region as the predictor.
+
+```{r}
+#infmort
+attach(infmort)
+attributes(region)
+
+contrasts(region)=contr.treatment(4)
+g2=lm(income~region)
+summary(g2)
+```
+
+(a) Determine whether income varies with region. Perform all necessary model diagnostics.
+
+```{r}
+null2 = lm(income ~ 1)
+anova(null2, g2)
+```
+
+
+Since the p-value<0.05, hence we reject the null hypothesis and conclude that there is difference in income according to the region.
+
+
+1. Performing Levene's test for equality of variance
+
+```{r}
+plot(g2, which=1)
+summary(lm(abs(g2$res) ~ region))
+```
+
+
+From the residuals vs. fitted values plot, we see that the points don't appear to be randomly spread out about the line. We should investigate further using Levene's test.
+
+From Levene's test since the p-value<0.01,we reject the null hypothesis and conclude that there is evidence of unequal variances.
+
+2.  Performing Shapiro-Wilk test for normality
+
+```{r}
+plot(g2, which=2)
+shapiro.test(residuals(g2))
+```
+
+
+From the Q-Q plot, we can see that there is an increasing trend however not a perfect straight. We should investigate further with Shapiro-Wilk test.
+
+We get the same confirmation from the Shapiro-Wilk normality test. The p-value<0.05, hence we reject the null hypothesis and conclude that the normality of residuals assumption does not hold true.
+
+3. Detecting unusual observations
+
+a. Leverage
+
+```{r}
+plot(g2, which=6)
+```
+
+
+**Observations which have high Cook's distance value as well as leverage require special handling. Such observations are: 20 and 52 are worth investigating further.**
+
+b. Influential Observations
+```{r}
+cook2 = cooks.distance(g2)
+sort(cook2, decreasing = TRUE)[1:5]
+```
+
+**Observations 20 has a very high cook's distance value as compared to other observations, we may consider removing it for model fitting. **
+
+
+c. Outliers
+
+```{r}
+jack2=rstudent(g2)
+nn2=dim(infmort)[1]
+qt(0.5/(2*nn2),g2$df.residual-1)
+```
+
+```{r}
+sort(abs(jack2),decreasing=TRUE)[1:10]
+```
+
+
+**Observations 20, 4, 13 have a studentized quantile value close > 2.8., hence they may be considered outliers. We may remove this observation for model fitting.**
+
+
+(b) In case income varies with region, determine which pairs of regions are different.
+
+We use Pairwise t-test with Bonferroni Correction to determine the pairs of region which have difference in incomes.
+
+```{r}
+pairwise.t.test(income,region,p.adjust.method = "bonferroni")
+```
+
+
+
+For pair-wise computed p-values<0.05 we conclude those regions to have significant differences in incomes.
+Such regions where there is significant difference in income are:
+
+1. Europe and Africa
+
+2. Asia and Europe
+
+3. Americas and Europe
+
+
+(c) In case you need a transformation for the response, re-fit the model and make a comparison with the previous results.
+
+```{r}
+par(mfrow=c(1,2))
+plot(income)
+plot(log(income))
+```
+
+Log transformation of response variable results in a linearly distributed scatter plot. We transform the variable with a log transformation.
+
+```{r}
+transformed_income=log(income)
+contrasts(region)=contr.treatment(4)
+g2_2=lm(transformed_income~region)
+summary(g2_2)
+```
+
+
+Since the p-value<0.05, hence we reject the null hypothesis and conclude that there is difference in log(income) according to the region.
+
+```{r}
+pairwise.t.test(transformed_income,region,p.adjust.method = "bonferroni")
+```
+
+
+For pair-wise computed p-values<0.05 we conclude those regions to have significant differences in log(incomes).
+Such regions where there is significant difference in income are:
+
+1. Europe and Africa
+
+2. Asia and Europe
+
+3. Americas and Africa
+
+4. Americas and Europe
+
+** Comparison with previous results:**
+
+After the transformation of response variable, we still get the same result that the income varies with region as well as log(income) varies with region.
+
+After the transformation in addition to the regions obtained previously, we get 'Americas and Africa' regions have signficant diffences in log of incomes.
+
+## Problem 3
+
+Use the PlantGrowth data to determine whether there are any differences between the groups.
+```{r}
+#PlantGrowth
+attach(PlantGrowth)
+attributes(group)
+
+contrasts(group)=contr.treatment(3)
+g3=lm(weight~group)
+summary(g3)
+```
+
+Since the p-value of 0.01591<0.05, we reject the null hypothesis and conclude that there is a difference in weights according to the groups.
+
+(a) Make an appropriate plot to help you explain the nature of these differences. Comment
+on your results.
+
+```{r}
+boxplot(weight~group,outline=FALSE)
+stripchart(weight~group,vertical=TRUE, 
+           add=TRUE,col="blue",pch=1)
+```
+
+```{r}
+g3aov=aov(weight~group,data=PlantGrowth)
+```
+
+```{r}
+tci=TukeyHSD(g3aov, conf.level=.95)
+tci
+plot(tci)
+```
+
+
+
+There are 3 groups - which gives 3 possible pairwise comparisons between them: trt1-ctrl, trt2-ctrl, and trt2-trt1.
+
+The plot has all these comparisons displayed at different heights with the label on the left y axis side. 
+
+The x-axis represent the mean differences that were found between those pairs. The extended lines show the 95% confidence intervals. 
+
+In case if the confidence interval crosses the 0 point - the difference would not be statistically significant. 
+
+Based on this we could reason that there is significant difference in 'trt1 and trt2' while all the other comparisons 'trt2 and ctrl' & 'trt1 and ctrl' are not.
+
+(b) Test whether there is a significant difference between the average yield for the two
+treatments and the control.
+
+```{r}
+library(DescTools)
+ScheffeTest(g3aov,contrasts=matrix(c(1,-0.5,-0.5),ncol=1))
+```
+
+
+As the p-val>0.05 hence we fail to reject the null hypothesis and conclude that the is no significant difference between the difference between the average yields for the two treatments and control.
+

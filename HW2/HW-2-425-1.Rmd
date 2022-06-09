@@ -1,0 +1,366 @@
+---
+title: "Stat 425 Homework 2"
+author: "Sharvi Tomar (stomar2)"
+date: 30/08/21
+output:
+  pdf_document: 
+   latex_engine: xelatex
+   toc: yes
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{css, echo=FALSE}
+.solution {
+background-color: #CCDDFF;
+}
+```
+
+
+## Problem 1: Using the sat data from the faraway library
+
+(a) Fit a model with total sat score as the response and expend, ratio and salary as predictors. Test the
+hypothesis that $\beta$salary=0. Test the hypothesis that $\beta$salary = $\beta$ratio = $\beta$expend = 0. Do any of
+these predictors have an effect on the response?
+
+```{r}
+# Fitting a model with total sat score as the response, expend, ratio and salary as predictors. 
+library(faraway)
+model1 = lm(total ~ expend + ratio + salary, data = sat)
+summary(model1)
+```
+
+Test:
+
+H0 : $\beta$salary = 0
+
+Ha : $\beta$salary $\neq$ 0
+
+p-value for salary(0.0667) is greater than 0.05. Thus at 5% level, we fail to reject the null hypothesis, i.e., we do not have enough evidence to conclude that salary is statistically significant in predicting the response.
+
+Test 
+
+H0 : $\beta$salary= $\beta$ratio= $\beta$expend = 0
+
+Ha : Atleast one of the $\beta$salary,$\beta$ratio, $\beta$expend is non-zero
+
+Overall p-value for the model is 0.0129 which is less than 0.05. Thus at 5% level, we reject the
+null hypothesis in favor of alternate hypothesis that atleast one of the coefficients is non-zero.
+
+Yes, when taken together atleast one variable has effect on the response.
+
+(b) Now add takers to the model. Test the hypothesis that $\beta$takers = 0. Compare this model to the
+previous one using an F-test. Demonstrate that the F-test is equivalent to the t-test.
+```{r}
+model2 = lm(total ~ expend + ratio + salary + takers, data = sat)
+summary(model2)
+```
+
+Test:
+
+H0 : $\beta$takers= 0
+
+H1 : $\beta$takers $\neq$ 0
+
+Since the p-value for takers(2.61e-16) is less than 0.05, we reject the null hypothesis and the accept the
+alternate. Thus, at 5% level, takers is statistically significant in predicting the response.
+
+```{r}
+# Compare this model to the previous one using an F-test.  
+a=anova(model1, model2)
+a
+```
+
+```{r}
+#Showing how f-test is same as t-test for this
+f_value = a[2,5]
+t_sqrd = summary(model2)$coef[5,3]^2
+round(f_value,4)
+
+round(t_sqrd,4)
+```
+
+F = tˆ2. Thus, F_test is same as t_test.
+
+## Problem 2: For the prostate data from the faraway library, fit a model with lpsa as the response and the other variables as predictors:
+
+```{r}
+# fit a model with lpsa as the response and the other variables as predictors:
+model3 = lm(lpsa ~ ., data = prostate)
+summary(model3)
+```
+
+(a) Compare 90% and 95% CIs for the parameter associated with age.
+
+```{r}
+# 95% CIs for the parameter associated with age
+confint(model3, 'age', level = 0.95)
+# 90% CIs for the parameter associated with age
+confint(model3, 'age', level = 0.90)
+```
+
+b) Remove all predictors that are not significant at the 5% level. Test this model against the original
+model. Which model is preferred?
+```{r}
+# Remove all predictors that are not significant at the 5% level. 
+model4=lm(lpsa ~lcavol+lweight+svi, data = prostate)
+summary(model4)
+```
+
+```{r}
+# Test this model against the original model.  
+anova(model3, model4)
+```
+
+Null Hypothesis : Reduced Model
+
+Alternate hypothesis: Full Model
+
+P-value for the anova F-test is greater than 0.05, thus we fail to reject the null hypothesis.
+Thus, our reduced model is useful in explaining the variance in response variable.Thus, we
+will go ahead with reduced model
+
+c) Compute and display a 95% joint confidence region for the parameters associated with age and lph.
+Plot the origin (0; 0) on this display. The location of the origin on the display tell us the outcome of
+a certain hypothesis test. State that test and its outcome.
+```{r}
+# Compute  and  display  a  95%joint  confidence  regionfor  the  parameters  associatedwithageandlph.  Plot the origin (0,0) on this display.  The location of the origin on thedisplay tell us the outcome of a certain hypothesis test.  
+require(ellipse)
+CR95=ellipse(model3,c(4,5))
+head(CR95)
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(data = data.frame(CR95), aes(x = age, y = lbph)) +
+  geom_path() +
+  geom_point(
+    x = coef(model3)[4],
+    y = coef(model3)[5],
+    shape = 3,
+    size = 3,
+    colour = 'red'
+  ) +
+  geom_point(
+    x = 0,
+    y = 0,
+    shape = 1,
+    size = 3,
+    colour = 'red'
+  )
+```
+
+Test:
+
+H0 : $\beta$age= $\beta$lbph= 0
+
+H1 : Atleast one of $\beta$age, $\beta$lbph is non-zero.
+
+Thus, we fail to reject the null hypothesis, i.e. we do not have enough evidence to conclude that atleast one of age or lbph is significant in predicting lpsa.
+
+d) In class we discussed a permutation test corresponding to the F-test for the significance of a set of
+predictors. Execute the permutation test corresponding to the t-test for age in this model.
+```{r}
+# permutation test
+fullmodel_ps = lm(lpsa~., data = prostate)
+n.iter=2000
+fstats=numeric(n.iter)
+for (i in 1:n.iter) {
+newprostate=prostate
+newprostate[,3]=prostate[sample(97),3]
+lm.fit=lm(lpsa~.,data=newprostate)
+fstats[i]=summary(lm.fit)$fstat[1]
+}
+length(fstats[fstats > summary(fullmodel_ps)$fstat[1]])/n.iter
+```
+P-value for age is greater than 0.05. Thus at 5% level, we fail to reject the null hypothesis,i.e,
+we do not have enough evidence to conclude that age is significant in predicting lpsa.
+
+## Problem 3: In the punting data from the faraway library we find average distance and hang times of 10 punts of an American football as related to various measures of leg strength for 13 volunteers.
+
+a) Fit a regression model with Distance as the response, and the right and left strengths, and the right
+and left exibilities as predictors. Which predictors are significant at the 5% level?
+
+
+```{r}
+fullmodel_pt=lm(Distance~RStr+LStr+RFlex+LFlex,data=punting)
+summary(fullmodel_pt)
+```
+None of the variables is significant individually at 5% level.Overall p-value of the F-test is
+0.01902 which is less than 0.05.Thus, all 4 predictors taken together explains the variance
+better than an intercept model. Thus, all 4 variables are significant jointly but not individually
+
+(c) Relative to the model in (a) (full model), test whether the right and left strength have the same effect.
+
+```{r}
+reducedmodel_1_pt = lm(Distance ~ I(RStr+LStr) + RFlex+LFlex , data = punting)
+anova(reducedmodel_1_pt,fullmodel_pt)
+```
+
+Conclusion:We fail to reject the null hypothesis. Thus, both coefficients are not statistically
+different, i.e, they can have same effect.
+
+(d) Construct a 95% confidence region for ($\beta$RStr; $\beta$LStr). Explain how the test in (c) relates to this region.
+
+```{r}
+library(ellipse)
+CR95=ellipse(fullmodel_pt,c(2,3))
+head(CR95)
+```
+
+```{r}
+library(ggplot2)
+ggplot(data = data.frame(CR95), aes(x = RStr, y = LStr)) +
+  geom_path() +
+  geom_point(
+    x = coef(fullmodel_pt)[2],
+    y = coef(fullmodel_pt)[3],
+    shape = 3,
+    size = 3,
+    colour = 'red'
+  ) +
+  geom_point(
+    x = 0,
+    y = 0,
+    shape = 1,
+    size = 3,
+    colour = 'red'
+  )
+```
+
+Since (0,0) lies inside the 95% confidence region, we fail to reject the null hypothesis,i.e, we
+fail to conclude that atleast one of LStr and RStr is significant in predicting the Distance.
+
+e) Fit a model to test the hypothesis that it is total leg strength, defined by adding the right and left leg
+strengths, that is sufficient to predict the response, in comparison to using individual left and right
+strengths.
+```{r}
+fullmodel_2_pt = lm(Distance ~ RStr+LStr, data = punting)
+reducedmodel_2_pt = lm(Distance ~ I(RStr+LStr), data = punting)
+anova(reducedmodel_2_pt,fullmodel_2_pt)
+```
+
+Null Hypothesis : Reduced Model
+
+Alternate hypothesis: Full Model
+
+Since p-value of the f-test is greater than 0.05, we fail to reject null. Thus, proposed new variable is useful in explaining the variance.
+
+(f) (4CR) Relative to the model in (a), test whether the right and left leg flexibilities have the same effect.
+```{r}
+reducedmodel_3_pt = lm(Distance ~ RStr+LStr + I(RFlex+LFlex) , data = punting)
+anova(reducedmodel_3_pt,fullmodel_pt)
+```
+Test:
+
+H0 : $\beta$RFlex = $\beta$LFlex
+
+Ha : $\beta$RFlex $\neq$ $\beta$LFlex
+
+Conclusion:We fail to reject the null hypothesis. Thus, both coefficients are not statistically
+different, i.e, they can have same effect.
+
+(g) (4CR) Test for the left-right symmetry by performing the tests in (c) and (f) simultaneously.
+
+```{r}
+reducedmodel_4_pt = lm(Distance ~ I(RStr+LStr) + I(RFlex+LFlex) , data = punting)
+anova(reducedmodel_4_pt,fullmodel_pt)
+```
+
+Null Hypothesis : Reduced Model 
+
+Alternate hypothesis: Full Model
+
+We fail to reject the null hypothesis.Thus, coefficients for left and right strengths can be
+same & coefficients for left and right flexibilities can be same. Thus, left and right maybe
+symmetric; however, we do not have enough evidence to confirm this.
+
+(h) (4CR) Fit a model with Hang as the response, and the same four predictors. Can we make a test to
+compare this model to that used in (a)? Explain.
+
+```{r}
+fullmodel_pd = lm(Hang ~ RStr+LStr+RFlex+LFlex, data = punting)
+summary(fullmodel_pd)
+```
+
+No, we can not make a test to compare this model to that used in a) as the response variable
+is different in both cases
+
+## Problem 4: Find a formula relating R2 and the F-test for the regression.
+#![.](Q4.pdf)
+
+
+## Problem 5: For the prostate data, fit a model with lpsa as the response and the other variables as predictors.
+
+```{r}
+fullmodel_pd = lm(lpsa~., data = prostate)
+summary(fullmodel_pd)
+```
+
+(a) Suppose a new patient with the following values arrives. Predict lpsa for this patient along with an appropriate 95% CI.
+
+```{r}
+# New patient with the following values arrives. 
+test = data.frame(
+  "lcavol" = 1.44692 ,
+  "lweight" = 3.62301,
+  "age" = 65,
+  "lbph" = 0.3001,
+  "svi" = 0,
+  "lcp" = -0.79851,
+  "gleason" = 7,
+  "pgg45" = 15
+)
+
+# Predict lpsa for this patient along with an appropriate 95% CI.
+predict(fullmodel_pd, test, interval = "prediction")
+```
+
+(b) Predict the last question for a patient with the same values except that he is age 20.Explain why the CI is wider.
+```{r}
+# Another patient with the same values except that he is age 20.
+test2 = data.frame(
+  "lcavol" = 1.44692 ,
+  "lweight" = 3.62301,
+  "age" = 20,
+  "lbph" = 0.3001,
+  "svi" = 0,
+  "lcp" = -0.79851,
+  "gleason" = 7,
+  "pgg45" = 15
+)
+# Predict lpsa for this patient along with an appropriate 95% CI.
+predict(fullmodel_pd, test2, interval = "prediction")
+```
+
+
+```{r}
+# Checking range of age predictor
+range(prostate$age)
+# Checking mean of age predictor
+mean(prostate$age)
+```
+
+Confidence interval is wider as age = 20 is outside the range of age (41-79) and much farther
+from the mean of age(63.86) as compared to age = 65
+
+(c) For the model of the previous question, remove all predictors that are not significant at the 5% level.
+Now recompute the predictions for the new patient of the previous question and its 95% CI. Are the
+CIs wider or narrower? Which predictions would you prefer?
+
+```{r}
+reducedmodel_pd = lm(lpsa~lcavol+lweight+svi, data = prostate)
+predict(reducedmodel_pd,test,interval='prediction')
+```
+
+Confidence Interval is wider as compared to the previous question. I will prefer predictions
+which have narrower intervals at the same confidence level. Thus, in this case I will prefer
+predictions from the previous question
+
+## Problem 6
+
+#![.](Q6.pdf)

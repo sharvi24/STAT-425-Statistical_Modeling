@@ -1,0 +1,156 @@
+---
+title: "STAT 425 Homework-1"
+author: "Sharvi Tomar (stomar2)"
+date: 01/09/21
+output:
+  pdf_document: 
+   latex_engine: xelatex
+   toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1:  
+
+The  data  set prostate from  the faraway library,  is  from  a  study  on  97  men with prostate cancer who were due to receive a radical prostatectomy.  Make a numerical and graphical summary of the data.  Comment on any features you find interesting.
+
+```{r}
+library(faraway)
+prostate_data=data.frame(prostate)
+str(prostate_data)
+```
+
+```{r}
+# Numerical summary
+summary(prostate) 
+```
+The minimum age of the men with prostate cancer is 41 years and the maximum is 79 years (no young men in the data).
+
+```{r}
+# Graphical summary
+pairs(prostate)  
+```
+1.From the top-right and botton-left corner, we can see a relationship between 'lcavol and 'lpsa' values.
+
+2.The nature of scatter plots of 'svi' and 'gleason' are different and hence, we can check the distributions of these variables to understand better.
+
+```{r}
+# Plotting the variable 'lpsa' with 'lcavol'
+plot(prostate_data$lpsa ~ prostate_data$lcavol, las=3)
+```
+There is an overall positive linear relationship between lspa and lcavol.
+The log of prostate specific antigen (lspa) seems to increase with the increase in log cancer vol (lcavol).
+
+
+```{r}
+hist(prostate_data$svi,main="svi",xlab="svi")
+table(prostate_data$svi)
+```
+Variable 'svi' takes only 2 values 0 and 1. Most men(76 out of 97) in the data, do not have seminal vesicle invasion or svi.
+It makes sense to represent it as a factor variable while performing linear regression.
+
+```{r}
+hist(prostate_data$gleason,main="gleason",xlab="gleason")
+table(prostate_data$gleason)
+```
+Variable 'gleason' takes the values 6,7,8,9 and stands for Gleason score. Most people (91 out of 97) in the data have a gleason score of 6-7 and only a few have a higher gleaon score of 8-9.
+
+
+```{r}
+# Plotting distribution of 'age'
+hist(prostate_data$age,main="age",xlab="age")
+```
+
+## Problem 2 
+
+Show that for the SLR model, the coefficient of determination R2 is equal to the square of the correlation coefficient r2 XY.
+![.](Q2.pdf)
+
+![.](5c.pdf)
+
+## Problem 3
+
+Straight line regression through the originIn this question we shall make the following assumptions:
+(1)Yis related toxby the simple linear regression modelYi=βxi+ei(i= 1,2,...,n), i.e.E(Y|X=xi) =βxi
+(2)  The errorse1,e2,...,enare independent from each other.
+(3)  The errorse1,e2,...,enhave a common variance.
+(4)  The errors are normally distributed with a mean 0 and varianceσ2(especially when the sample size is small), i.e.,e|X∼N(0,σ2).
+In addition, since the regression model is conditional onXwe can assume that the values of the predictor variablex1,x2,...,xn are known fixed constants.
+
+(a)  Show that the least squares estimate ofβis given by:ˆβ=∑ni=1xiyi∑ni=1x2i
+(b)  Under the above assumptions show that:
++(i)E[ˆ \(\beta\)] = \(\beta\)
+(ii)V ar(ˆ \(\beta\)) =σ2∑ni=1x2i
++(iii)ˆ \(\beta\)|X∼N( \(\beta\),σ2∑ni=1x2i)
+![.](3ab.pdf)
+![.](3b.pdf)
+
+## Problem 4
+
+The web site www.playbill.comprovides weekly reports on the box office ticketsales for plays on Broadway in New York.  We shall consider the data for the week October1117, 2004 (referred to below as the current week).  The data are in the form of the gross boxoffice results for the current week and the gross box office results for the previous week (i.e.,October 310, 2004).  The data are included in the fileplaybill.csv.Fit the following model to the data:Y=β0+β1x+ewhereYis the gross box office resultsfor the current week (in$) andxis the gross box office results for the previous week (in$).
+```{r}
+playbill=read.csv("playbill.csv")
+model=lm(CurrentWeek~LastWeek, playbill)
+```
+
+Complete the following tasks:
+(a)  Find a 95% confidence interval for the slope of the regression model, \(\beta1\). Is 1 a plausible value for \(\beta1\)?  Give a reason to support your answer.
+```{r}
+library(ISwR)
+confint(model, 'LastWeek', level=0.95)
+```
+From above, we can see that 1 lies within the 95% confidence interval and hence, 1 can certainly be a plausible 	\(\beta1\) value.
+
+(b)  Test the null hypothesis H0: \(\beta0\)= 10000 against a two-sided alternative.  Interpret your result.
+```{r}
+confint(model, '(Intercept)', level=0.95)
+```
+From above, we can see that intercept(\(\beta0\)) value of 10000 lies within the 95% confidence interval range.Hence, we do NOT reject the null hypothesis i.e. \(\beta0\)= 10000.
+
+(c)  Use the fitted regression model to estimate the gross box office results for the current week (in $) for a production with $400,000 in gross box office the previous week.  Find a 95% prediction interval for the gross box office results for the current week (in $ for a production with $400,000 in gross box office the previous week.  Is $450,000 a feasible value for the gross box office results in the current week, for a production with $400,000in gross box office the previous week?  Give a reason to support your answer.
+```{r}
+predict(model,newdata=data.frame(LastWeek = 400000),interval="predict", level=.95) 
+```
+From above, we can see that 450,000 does not lie within 95% confidence interval and hence, $450,000 is not a feasible value.
+
+(d)  Some promoters of Broadway plays use the prediction rule that next week's gross box office  results  will  be  equal  to  this  weeks  gross  box  office  results. Comment  on  the appropriateness of this rule.
+
+```{r}
+summary(model)
+```
+From the model summary, we can see that:
+a) the coefficient of `LastWeek' is ~0.982 (close to 1) and the variable statistically significant in the prediction 
+b) the 'Intercept' value is not significant
+c) High value of R-squared
+From here, we can say the Current Week value is very close to Last Week value.
+
+To understand the promoters prediction rule better, lets create a linear regression model with no intercept.
+
+```{r}
+# Creating a linear regression model with no intercept
+model2=lm(CurrentWeek~ LastWeek-1,data = playbill)
+summary(model2)
+```
+```{r}
+par(mfrow = c(2, 2))
+plot(model2)
+```
+
+From the above model we can see that the coefficient of 'LastWeek' is 0.99 (very close to 1). The model's R-squared value is also very high (0.9994). Hence, the promoters prediction rule is reasonably good.
+
+
+## Problem 5
+
+In this problem we want to test that the identity:TSS=FSS+RSS.  In order to do that, test the following identities:
+
+(a)  Show that (yi−ˆyi) = (yi− ̄y)−ˆβ1(xi− ̄xx)
+(b)  Show that (ˆyi− ̄y) =ˆ\(\beta1\)(xi− ̄x)
+(c)  Utilizing the fact thatˆβ1=SXYSXX, show that ∑ni=1(yi−ˆyi)(ˆyi− ̄y) = 0
+(d)  Finally test TSS=FSS+RSS
+
+![.](5ab.pdf)
+![.](5c.pdf)
+![.](5d.pdf)
+

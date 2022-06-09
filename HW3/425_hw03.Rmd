@@ -1,0 +1,256 @@
+---
+title: "Sharvi Tomar HW3"
+date: "Due: Oct 22, 2021"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: yes
+---
+
+<style>
+body {
+text-align: justify}
+</style>
+
+```{css, echo=FALSE}
+.solution {
+background-color: #CCDDFF;
+}
+```
+
+## Problem 1
+
+For the salmonella data set fit a linear model with colonies as the response, and log(dose + 1) as predictor. Check for lack of fit.
+
+```{r}
+library(faraway)
+data1 = salmonella
+head(data1)
+```
+Since $\sigma^2$ is not known, it is possible to check for lack-of-fit by comparing an estimate of $\sigma^2$ on a general model only when there is some replication. The data has replicates as known from above, hence it is possible to check for lack-of-fit using partial F-test.
+
+Null Hypothesis: Current Model (No lack of fit)
+
+Alternate Hypothesis: General Model (Lack of fit)
+
+```{r}
+# Fitting current model
+model_1 = lm(colonies ~ log(dose + 1), data = data1)
+# Fitting generalised model
+model_1factor = lm(colonies ~ factor(log(dose + 1)), data = data1)
+```
+
+```{r}
+# Comparing 2 models using ANOVA
+anova(model_1, model_1factor)
+```
+
+```{r}
+# Calculating p-value
+1 - pf(2.1709, 4, 12)
+```
+
+Since p-value>0.05, we fail to reject the null hypothesis and hence, the current model is sufficient to explain the variability in the response variable. Since the model proposed in the null hypothesis is statistically significant, we conclude that there is no lack of fit.
+
+## Problem 2
+
+The gammaray data set shows the x-ray decay light curve of gamma ray burst. Note that the measurement errors on the response are provided. Build a model to predict the flux as a function of time using appropriate weights. Is any transformation suggested for the response and/or the predictors?
+```{r}
+data2 = gammaray
+head(data2)
+```
+We will be starting with a simplistic weight of 1/error.
+
+```{r}
+# Fitting model with weights=1/error
+model_2 = lm(flux ~ time, data = data2, weights = 1 / error)
+summary(model_2)
+```
+
+We can see that the R-squared value for the model 0.03018 is very low. Hence, we need to make transformations. We can check for tranformations required in the response variable using the Box-Cox method.
+
+```{r}
+#Box-Cox Transformation
+library(MASS)
+boxcox(model_2)
+```
+
+$\lambda$ value of zero suggests that a log transformation of the response variable is required.
+
+```{r}
+# Fitting the previous model with log transformation of response
+model_2log = lm(log(flux) ~ time, data = data2, weights = 1 / error)
+summary(model_2log)
+```
+
+We can see a great improvement in the value of R-squared. The R-squared value has increased from 0.03018 to 0.8278 with the log transformation of the response. Now going ahead to check for the transformations required for predictor.
+
+```{r}
+# Plotting predictor(time) with the log transformation of response
+plot(data2$time, log(data2$flux))
+```
+
+From the plot above plot of Predictor 'time' vs log transformation of response, we can see that it might be good idea to take log of the predictor variable for a getting a better linear relationship between the two.
+
+```{r}
+# Plotting the log transformation of the predictor with the log transformation of the response
+plot(log(data2$time), log(data2$flux))
+```
+Since we can see a strong linear relationship between the log transformation of the predictor (time) with the log transformation of the response(flux), we go ahead with fitting a linear model between these two.
+
+```{r}
+# Fitting a model with log transformation of predictor with log transformation of response
+model_2logpred = lm(log(flux) ~ log(time),
+                    data = data2 ,
+                    weights = 1 / error)
+summary(model_2logpred)
+```
+
+
+We can see that the R-squared value for the model has now increased to 0.9827 after taking log transformation of the predictor as well. 
+
+Now we go fit the model weights by a stronger factor of 1/error$^2$.
+
+```{r}
+# Fitting the previous model by changing weights to 1/error^2
+model_2error2 = lm(log(flux) ~ log(time),
+                   data = data2 ,
+                   weights = 1 / error ^ 2)
+summary(model_2error2)
+```
+
+The R-squared value for the model has now increased even more to 0.9966 after taking weights= 1/ error^2 following log transformations of the predictor and response variable.
+
+Since with the above model, we have got the highest value of R-square we conclude that it is the most suitable model in comparison with the other fitted models for modeling the relationship in the data provided. 
+
+## Problem 3
+
+For the prostate data, fit a model with lpsa as the response and the other variables as predictors.
+
+```{r}
+# Fitting a model with lpsa as response and all other variables as predictors
+data3 = prostate
+model3 = lm(lpsa ~ ., data = data3)
+summary(model3)
+```
+
+(a) Compute and comment on the correlation between predictors 
+
+```{r}
+# checking pairwise correlation
+round(cor(data3[1:8]), dig = 2)
+```
+
+The highest correlation values are for:
+
+1) pgg45 and gleason = 0.75. This means 'pgg45' and 'gleason' have strong positive linear relationship between them.
+
+2) lcp and lcavol = 0.68, lcp and svi = 0.67, lcp and pgg445 = 0.63.  This means 'lcp' has a moderate-to-strong positive relationship with 'lcavol', 'svi' and 'pgg445'.
+
+Other variates do not seem to have any significant positive or negative relationship with each other. To understand and verify claims about collinearity between the predictor, let us go ahead to perform statistical tests.
+
+(b) Compute and comment on the Condition number
+
+```{r}
+# Standardize matrix
+x = model.matrix(model3)[, -1]
+x = x - matrix(apply(x, 2, mean), 97, 8, byrow = TRUE)
+x = x / matrix(apply(x, 2, sd), 97, 8, byrow = TRUE)
+```
+
+Since the Condition Number is scale-dependent, hence the columns of x have been standardized.
+
+```{r}
+e = eigen(t(x) %*% x)
+
+# As eigen values are sorted in descending order, we take the max and min from the list
+largest_eigen = e$val[1]
+smallest_eigen = tail(e$val, n = 1)
+
+k = sqrt(largest_eigen / smallest_eigen)
+k
+```
+
+As per the empirical rule for declaring collinearity, $\kappa$>=30. In the case above, $\kappa$ value is not greater than 30, hence there in no collinearity amongst the predictors.
+
+(c) Compute and comment on the variance inflation factors.
+
+```{r}
+library(car)
+car::vif(model3)
+```
+
+Since the vif is not greater than 4 for any variable, we conclude that the variables do not have collinearity.
+
+## Problem 4
+
+Use the cheddar data for this question
+
+(a) Fit an additive model for taste as a response, with the other three variables as predictors. Is any transformation of the predictors suggested? Justify your answer.
+
+```{r}
+data4 = cheddar
+# Fitting model for taste as response and other variables as predictors
+model4 = lm(taste ~ ., data4)
+summary(model4)
+```
+
+The R-squared value of the model is 0.6518. We might want to try doing transformations on the predictors to create a better model.
+
+We plot each predictor variable with model residuals in order to see if there any pattern in order to apply tranformations.
+
+```{r}
+# Plotting each predictor variable with model residuals
+par(mfrow = c(1, 3))
+
+plot(data4$Acetic, model4$residuals)
+lines(supsmu(data4$Acetic, model4$residuals), col = "red")
+
+plot(data4$H2S, model4$residuals)
+lines(supsmu(data4$H2S, model4$residuals), col = "red")
+
+plot(data4$Lactic, model4$residuals)
+lines(supsmu(data4$Lactic, model4$residuals), col = "red")
+```
+
+Since the there is no significant trend/pattern in the predictor vs model residuals plot for each of the 3 predictors, we can conclude that there is no requirement of performing transformations on the predictors.
+
+
+(b) Use the Box-Cox method to determine an optimal transformation of the response. Would it be reasonable to leave the response untransformed?
+```{r}
+#boxcox(model4, se)
+boxcox(model4, plotit = TRUE, lambda = seq(0.3, 1.2, by = 0.1))
+```
+Since 1 lies outside the confidence interval, hence Box-Cox suggests a transformation on the response variable.
+
+(c) Use the optimal transformation of the response and refit the additive model. Do these new results make any difference to the transformations suggested for the predictors in part a)?
+
+From the above box-cox transformation, we can take the value of $\lambda$=0.667 for transforming the reponse variable.
+
+```{r}
+# Fitting the model with transformed response
+model_4ytrans = lm((taste ^ 0.667 - 1) / 0.667 ~ ., data = data4)
+summary(model_4ytrans)
+```
+
+The R-squared for the model is 0.6468.
+
+We plot each predictor variable with model residuals in order to see if there any pattern in order to apply tranformations.
+
+```{r}
+# Plotting each predictor variable with model residuals
+par(mfrow = c(1, 3))
+
+plot(data4$Acetic, model_4ytrans$residuals)
+lines(supsmu(data4$Acetic, model_4ytrans$residuals), col = "red")
+
+plot(data4$H2S, model_4ytrans$residuals)
+lines(supsmu(data4$H2S, model_4ytrans$residuals), col = "red")
+
+plot(data4$Lactic, model_4ytrans$residuals)
+lines(supsmu(data4$Lactic, model_4ytrans$residuals), col = "red")
+```
+
+Since the there is no significant trend/pattern in the predictor vs model residuals plot for each of the 3 predictors, we can conclude that there is no requirement of performing transformations on the predictors.
+
+Hence, the new results also do not make any difference to the transformations suggested for the predictors in part a).

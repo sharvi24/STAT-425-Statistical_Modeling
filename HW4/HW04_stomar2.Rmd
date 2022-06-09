@@ -1,0 +1,403 @@
+---
+title: 'STAT 425: HW4'
+author: "Sharvi Toamr"
+date: '10/22/2021'
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+---
+
+## Problem 1: 
+
+Use prostate data with lpsa as the response and the other variables as predictors.
+
+```{r}
+library(faraway)
+data("prostate")
+
+# Fitting linear model with all variables
+g = lm(lpsa ~ ., data = prostate)
+summary(g)
+```
+
+Implement the following variable selection methods to determine the best model:
+
+(a) Backward elimination
+
+```{r}
+#removing gleason variable as it most insignificant (p-value > 0.05)
+g = update(g, . ~ . - gleason)
+summary(g)
+```
+
+```{r}
+# Eliminating lcp variable as it most insignificant (p-value > 0.05)
+g = update(g, . ~ . - lcp)
+summary(g)
+```
+
+```{r}
+# Eliminating pgg45 variable as it most insignificant (p-value > 0.05)
+g = update(g, . ~ . - pgg45)
+summary(g)
+```
+
+```{r}
+# Eliminating age variable as it most insignificant (p-value > 0.05)
+g = update(g, . ~ . - age)
+summary(g)
+```
+
+```{r}
+# Eliminating lbph variable as it most insignificant (p-value > 0.05)
+g = update(g, . ~ . - lbph)
+summary(g)
+```
+
+The final model using backward elimination has 3 covariates and is: lpsa ~ lcavol + lweight + svi
+
+(b) AIC
+
+```{r}
+# Using the best subset selection
+library(leaps)
+b = regsubsets(lpsa ~ ., data = prostate)
+rs = summary(b)
+rs$which
+
+# Using AIC
+n = dim(prostate)[1]
+
+msize = 2:9
+
+Aic = n * log(rs$rss / n) + 2 * msize
+
+AIC_size = msize[which.min(Aic)]
+AIC_size
+
+# plot
+plot(msize, Aic, xlab = "No. of Parameters", ylab = "AIC")
+
+```
+
+Number of variables selected using AIC is 6(including the intercept). 
+
+The best model using AIC :
+lpsa ~ lcavol + lweight + age + lbph + svi
+
+c) Adjusted R2
+
+```{r}
+#Using adjusted R2
+
+adjr2_modelsize = msize[which.max(rs$adjr2)]
+adjr2_modelsize
+```
+
+```{r}
+#plot
+plot(msize, rs$adjr2, xlab = "No. of Parameters", ylab = "Adjusted R2")
+
+```
+
+Number of variables selected using Adjusted R2 is 8(including the intercept).
+
+The best model using Adjusted R2 :lpsa ~ lcavol + lweight + age + lbph + svi + lcp + pgg45
+
+(d) Mallows Cp
+
+```{r}
+#Using Mallow's Cp
+Cp_modelsize = msize[which.min(rs$cp)]
+Cp_modelsize
+```
+
+```{r}
+#plot
+plot(msize, rs$cp, xlab = "No. of Parameters", ylab = "Mallows Cp")
+```
+
+The number of variables selected using Mallows Cp is 5(including the intercept)
+
+The best model using Mallows Cp :lpsa ~ lcavol + lweight + lbph + svi 
+
+## Problem 2
+
+(a) Fit regression splines with 12 evenly-spaced knots using y ~ bs(x; knots = : : :). You
+need to load the splines package. Display the fit on top of the data.
+
+```{r}
+set.seed(1)
+library(splines)
+
+my_func = function(x)
+  sin(2 * pi * x ^ 3) ^ 3
+x = seq(0, 1, length.out = 100)
+y = my_func(x) + 0.1 * rnorm(100)
+
+#knots
+m = 12
+
+#interval is 0 to 1
+myknots = (1:m) / (m + 1)
+
+#the design matrix
+F = bs(x, knots = myknots, intercept = TRUE)
+
+#fitting the spline
+fit = lm(y ~ F - 1)
+summary(fit)
+
+#prediction line on plot
+#plot
+plot(x, y, type = "p", pch = 20)
+lines(spline(x, predict(fit)), col = "red", lty = 1)
+
+```
+
+b) Compute the AIC for this model.
+
+```{r}
+#number of observation
+n=100
+
+#number of parameters/df
+p = dim(model.matrix(fit))[2]
+
+rss = sum(fit$residuals^2)
+
+#AIC
+AIC = n*log(rss/n) + 2*p
+
+sprintf("AIC for the model is:%f",AIC)
+```
+
+(c) Compute the Adjusted R2
+
+```{r}
+adj_r_sq = summary(fit)$adj.r.squared
+sprintf("Adjusted R2:%f", round(adj_r_sq, 4))
+```
+
+d) Compute the AIC for all models with a number of knots between 3 and 20 inclusive.
+Plot the AIC as a function of the number of degrees of freedom. Which model is the
+best?
+
+```{r}
+n = length(x)
+AIC = c()
+df = c()
+m = 3:20
+
+#knots
+for (i in 1:length(m))
+{
+  #interval is 0 to 1
+  myknots = (1:m[i]) / (m[i] + 1)
+  
+  #the design matrix
+  F = bs(x, knots = myknots, intercept = TRUE)
+  
+  #fitting the spline
+  fit = lm(y ~ F - 1)
+  
+  #number of parameters/df
+  p = dim(model.matrix(fit))[2]
+  df[i] = p
+  
+  rss = sum(fit$residuals ^ 2)
+  
+  #AIC
+  aic = n * log(rss / n) + 2 * p
+  AIC[i] = aic
+  
+}
+
+plot(df,
+     AIC,
+     type = "b",
+     col = "darkorange",
+     xlab = "degrees of freedom")
+
+min_AIC = min(AIC)
+best_df = df[which.min(AIC)]
+best_m = m[which.min(AIC)]
+
+sprintf(
+  "For the best model: AIC= %f; degrees of freedom = %i; number of knots = %i",
+  min_AIC,
+  best_df,
+  best_m
+)
+```
+
+(e) Plot the fit for your selected model on top of the data.
+
+```{r}
+#knots
+m = 19
+
+#interval is 0 to 1
+myknots = (1:m) / (m + 1)
+
+#the design matrix
+F = bs(x, knots = myknots, intercept = TRUE)
+
+#fitting the spline
+best_fit = lm(y ~ F - 1)
+summary(best_fit)
+
+#plot
+plot(x, y, type = "p", pch = 20)
+lines(spline(x, predict(best_fit)), col = "red", lty = 1)
+
+```
+
+4. Problem 3GR: Using the infmort data, find a model for the infant mortality in terms of
+the other variables. Consider region and oil as categorical predictors.
+
+(a) Plot the data and comment on your results.
+
+```{r warning=FALSE}
+library(faraway)
+data("infmort")
+
+library(ggplot2)
+#by region
+ggplot(aes(x = income, y = mortality), data = infmort) + geom_point() +
+  facet_wrap( ~ region)
+
+#by oil
+ggplot(aes(x = income, y = mortality), data = infmort) + geom_point() +
+  facet_wrap( ~ oil)
+
+```
+
+From the plot we can make the following observations:
+
+1. Most of the countries in Africa fall under low income compared to other regions and mortality is generally high
+
+2. Low income countries of Asia, on average, have high mortality as compared to high income countries.
+
+3. In Europe, mortality rates are almost the same in all the countries irrespective of their PCI per capita income
+
+4. In Americas, most of the countries are towards the low income. Mortality,on average, is slightly high for those countries with respect to the 2 other countries which have high per capita income.
+
+5. For no oil exports countries the mortality rates are high when the per capita income is low and the mortality rates are low if the income is high.
+
+6. For the countries which export oil, not enough to make an observation.**
+
+(b) Fit a full model considering all potential interactions between the continuous and cate-
+gorical predictors. Comment on your results.
+
+```{r}
+#checking the class of region and oil predictors
+class(infmort$oil)
+class(infmort$region)
+
+#fitting the full model
+full_model = lm(mortality ~  income*oil*region, data = infmort)
+summary(full_model)
+
+```
+
+From the  model summary results, we can infer the following:
+
+-The above predictors explains 67% of the variance in infant mortality rate
+
+-Income is statistically significant in predicting the infant mortality rate (p-value < 0.05)
+
+-Change in effect of income on mortality for Asia wrt Africa is significant but not for Europe or Americas for countries with oil exports
+
+-Change in effect of income on mortality for no oil export countries wrt oil export countries is significant in Africa
+
+-The difference between mean mortality rate of europe and africa is signficant, assuming income and oil status remain same
+
+-The difference between mean mortality rate of no oil export countries w.r.t oil export countries is significant, assuming income and region stays same.
+
+
+(c) Use a sequential ANOVA to determine the best model.
+
+```{r}
+# Sequential ANOVA model
+anova(full_model)
+```
+
+From sequential ANOVA, we see that all terms are significant. So our full model is the best model
+
+(d) Check the assumptions of your model using appropriate diagnostics. Be alert for trans-
+formations and/or unusual points and make adjustments if necessary.
+
+```{r}
+#checking model dianostic
+plot(full_model)
+
+```
+
+From the above plots, we can make the following observations:
+
+Plot-1: From residual vs fitted plot, the mean line is around zero and points seem randomly distributed. Thus, it is safe to assume that assumption of linearity is not being violated
+
+Plot-2: From the Q-Q plot, it seems like the assumption of normality of errors is not being violated. However, we will do a Shapiro Wills test to confirm this
+
+Plot-3: It seems like the assumption of equal variance for errors is being violated (fan shaped). However, we will do B-P test to confirm this
+
+Plot-4: As per the cook's distance plot,'Indonesia', 'Libya' and 'Saudi Arabia' are highly influential observations
+
+
+```{r}
+library(lmtest)
+
+#checking constant variance assumption using BP test
+bptest(full_model)
+
+#checking normality assumption using Shapiro-Wilks test
+shapiro.test(residuals(full_model))
+
+```
+
+From the studentized Breusch-Pagan test result, we can infer that the assumption of constant variance is valid.
+
+From the Shapiro-Wilk normality test, we can infer that the assumption of normality is not valid. Thus, we might have to check for box-cox transformation
+
+```{r}
+#checking for boxcox
+library("MASS")
+
+boxcox(full_model,plotit = TRUE,lambda = seq(-0.5, 0.5, by = 0.1))
+```
+
+From Box-Cox transformation, we can see that lambda = 1 is not included in confidence region and thus, there is a need to do transformation for the response. We can conclude a log transformation can be done on the response variable(lamda_max ~ 0)
+
+
+(e) Interpret your final model by explaining what the regression parameter estimates mean.
+
+```{r}
+full_model_log = lm(log(mortality) ~  income*oil*region, data = infmort)
+summary(full_model_log)
+anova(full_model_log)
+```
+
+```{r}
+#final model
+
+final_model = lm(log(mortality) ~  income + oil + region +income*oil, data = infmort)
+summary(final_model)
+anova(final_model)
+
+```
+
+Meaning of regression parameter estimates:
+
+1. The parameter estimate of `income` is the effect of income on log of mortality for African countries with oil exports
+
+2. The parameter estimate of `oilno oil exports` represents change in expected log (mortality) on no oil export countries wrt to oil export countries in Africa
+
+3. The parameter estimate of `regionEurope` represents change in effect of income on log(mortality) for Europe wrt to Africa in countries with oil exports
+
+4. The parameter estimate of `regionAsia` represents change in effect of income on log(mortality) for Asia wrt to Africa in countries with oil exports
+
+5. The parameter estimate of `regionAmericas` represents change in effect of income on log(mortality) for Americas wrt to Africa in countries with oil exports
+
+6. The parameter estimate of interactive term `income:oilno oil exports` represents change in effect of income on log(mortality) for no oil countries wrt to oil export countries in Africa
